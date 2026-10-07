@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rocket League 3D</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #050508;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+        #ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .scoreboard {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            background: rgba(10, 10, 20, 0.75);
+            backdrop-filter: blur(10px);
+            padding: 10px 30px;
+            border-radius: 50px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin: 0 auto;
+            color: #fff;
+            font-weight: 800;
+            font-size: 24px;
+            letter-spacing: 2px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .score-blue { color: #3b82f6; }
+        .score-orange { color: #f97316; }
+        .dash-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            width: 100%;
+        }
+        .boost-container {
+            background: rgba(10, 10, 20, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 15px 25px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 220px;
+        }
+        .boost-label {
+            color: #aaa;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        .boost-bar-bg {
+            width: 100%;
+            height: 14px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 7px;
+            overflow: hidden;
+        }
+        .boost-bar-fill {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #60a5fa);
+            border-radius: 7px;
+            transition: width 0.05s linear;
+        }
+        .controls-hint {
+            background: rgba(10, 10, 20, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 12px 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #888;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+        .controls-hint b {
+            color: #fff;
+        }
+        #goal-message {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            color: #fff;
+            font-size: 64px;
+            font-weight: 900;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            text-shadow: 0 0 30px rgba(59, 130, 246, 0.8), 0 0 60px rgba(59, 130, 246, 0.4);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+            z-index: 10;
+        }
+        #goal-message.show {
+            transform: translate(-50%, -50%) scale(1);
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+</head>
+<body>
+    <div id="ui">
+        <div class="scoreboard">
+            <span class="score-blue" id="blue-score">0</span>
+            <span style="color:#555">-</span>
+            <span class="score-orange" id="orange-score">0</span>
+        </div>
+        <div id="goal-message">Goal!</div>
+        <div class="dash-panel">
+            <div class="boost-container">
+                <span class="boost-label">Boost</span>
+                <div class="boost-bar-bg">
+                    <div class="boost-bar-fill" id="boost-fill"></div>
+                </div>
+            </div>
+            <div class="controls-hint">
+                <b>W/S</b> or <b>↑/↓</b>: Drive / Reverse<br>
+                <b>A/D</b> or <b>←/→</b>: Steer<br>
+                <b>SPACE</b>: Jump / Double Jump (Flip)<br>
+                <b>SHIFT</b>: Boost<br>
+                <b>R</b>: Reset Ball/Car
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let scene, camera, renderer;
+        let world;
+        let carBody, carMesh, ballBody, ballMesh;
+        let wheels = [];
+        let wheelMeshes = [];
+        let constraints = [];
+        
+        let keys = { w: false, s: false, a: false, d: false, space: false, shift: false };
+        let boostAmount = 100;
+        let canJump = false;
+        let jumpTimer = 0;
+        let isAirborne = false;
+        let doubleJumpAvailable = false;
+        let pitch = 0, roll = 0, yaw = 0;
+        
+        let blueScore = 0, orangeScore = 0;
+        let isGoalScored = false;
+
+        const arenaWidth = 60;
+        const arenaLength = 100;
+        const arenaHeight = 30;
+
+        init();
+        animate();
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x06060c);
+            scene.fog = new THREE.FogExp2(0x06060c, 0.012);
+
+            camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.5, 500);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.body.appendChild(renderer.domElement);
+
+            world = new CANNON.World();
+            world.gravity.set(0, -25, 0);
+            world.broadphase = new CANNON.NaiveBroadphase();
+            world.solver.iterations = 10;
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(20, 50, 30);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            dirLight.shadow.camera.near = 0.5;
+            dirLight.shadow.camera.far = 200;
+            dirLight.shadow.camera.left = -60;
+            dirLight.shadow.camera.right = 60;
+            dirLight.shadow.camera.top = 60;
+            dirLight.shadow.camera.bottom = -60;
+            scene.add(dirLight);
+
+            const blueLight = new THREE.PointLight(0x3b82f6, 2, 80);
+            blueLight.position.set(0, 10, -arenaLength/2 + 5);
+            scene.add(blueLight);
+
+            const orangeLight = new THREE.PointLight(0xf97316, 2, 80);
+            orangeLight.position.set(0, 10, arenaLength/2 - 5);
+            scene.add(orangeLight);
+
+            createArena();
+            createBall();
+            createCar();
+
+            window.addEventListener('resize', onWindowResize);
+            window.addEventListener('keydown', (e) => handleKey(e, true));
+            window.addEventListener('keyup', (e) => handleKey(e, false));
+        }
+
+        function createArena() {
+            const floorMat = new THREE.MeshStandardMaterial({
+                color: 0x11131a,
+                roughness: 0.4,
+                metalness: 0.2
+            });
+            const floorGeo = new THREE.PlaneGeometry(arenaWidth, arenaLength);
+            const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+            floorMesh.rotation.x = -Math.PI / 2;
+            floorMesh.receiveShadow = true;
+            scene.add(floorMesh);
+
+            const floorBody = new CANNON.Body({
+                mass: 0,
+                shape: new CANNON.Plane()
+            });
+            floorBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+            world.addBody(floorBody);
+
+            const gridGeo = new THREE.GridHelper(arenaLength, 30, 0x3b82f6, 0x1f2438);
+            gridGeo.position.y = 0.05;
+            scene.add(gridGeo);
+
+            const wallMaterial = new THREE.MeshStandardMaterial({
+                color: 0x1a1c26,
+                roughness: 0.2,
+                metalness: 0.8,
+                transparent: true,
+                opacity: 0.7
+            });
+
+            const halfW = arenaWidth / 2;
+            const halfL = arenaLength / 2;
+
+            const walls = [
+                { pos: [0, arenaHeight/2, -halfL], size: [arenaWidth, arenaHeight, 2] },
+                { pos: [0, arenaHeight/2, halfL], size: [arenaWidth, arenaHeight, 2] },
+                { pos: [-halfW, arenaHeight/2, 0], size: [2, arenaHeight, arenaLength] },
+                { pos: [halfW, arenaHeight/2, 0], size: [2, arenaHeight, arenaLength] },
+                { pos: [0, arenaHeight, 0], size: [arenaWidth, 2, arenaLength] }
+            ];
+
+            walls.forEach(w => {
+                const mesh = new THREE.Mesh(new THREE.BoxGeometry(w.size[0], w.size[1], w.size[2]), wallMaterial);
+                mesh.position.set(w.pos[0], w.pos[1], w.pos[2]);
+                mesh.receiveShadow = true;
+                scene.add(mesh);
+
+                const shape = new CANNON.Box(new CANNON.Vec3(w.size[0]/2, w.size[1]/2, w.size[2]/2));
+                const body = new CANNON.Body({ mass: 0, shape: shape });
+                body.position.set(w.pos[0], w.pos[1], w.pos[2]);
+                world.addBody(body);
+            });
+
+            createGoal(-halfL, 0x3b82f6);
+            createGoal(halfL, 0xf97316);
+        }
+
+        function createGoal(zPos, colorHex) {
+            const goalWidth = 18;
+            const goalHeight = 10;
+            const goalDepth = 6;
+
+            const postMat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.3, emissive: colorHex, emissiveIntensity: 0.3 });
+            
+            const p1 = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, goalHeight), postMat);
+            p1.position.set(-goalWidth/2, goalHeight/2, zPos);
+            scene.add(p1);
+
+            const p2 = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, goalHeight), postMat);
+            p2.position.set(goalWidth/2, goalHeight/2, zPos);
+            scene.add(p2);
+
+            const crossbar = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, goalWidth), postMat);
+            crossbar.rotation.z = Math.PI / 2;
+            crossbar.position.set(0, goalHeight, zPos);
+            scene.add(crossbar);
+
+            const triggerBox = new CANNON.Box(new CANNON.Vec3(goalWidth/2 - 0.5, goalHeight/2 - 0.5, 1));
+            const triggerBody = new CANNON.Body({ mass: 0, isTrigger: true });
+            triggerBody.addShape(triggerBox);
+            triggerBody.position.set(0, goalHeight/2, zPos);
+            triggerBody.addEventListener('collide', (e) => {
+                if (e.body === ballBody && !isGoalScored) {
+                    scored(zPos < 0 ? 'orange' : 'blue');
+                }
+            });
+            world.addBody(triggerBody);
+        }
+
+        function createBall() {
+            const ballRadius = 2.2;
+            const ballGeo = new THREE.SphereGeometry(ballRadius, 32, 32);
+            const ballMat = new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                roughness: 0.1,
+                metalness: 0.1,
+                emissive: 0x222222
+            });
+            ballMesh = new THREE.Mesh(ballGeo, ballMat);
+            ballMesh.castShadow = true;
+            scene.add(ballMesh);
+
+            const ballShape = new CANNON.Sphere(ballRadius);
+            ballBody = new CANNON.Body({
+                mass: 1.5,
+                shape: ballShape,
+                linearDamping: 0.05,
+                angularDamping: 0.05,
+                material: new CANNON.Material({ restitution: 0.8 })
+            });
+            ballBody.position.set(0, ballRadius + 1, 0);
+            world.addBody(ballBody);
+        }
+
+        function createCar() {
+            const carWidth = 2.2;
+            const carHeight = 1.0;
+            const carLength = 4.2;
+
+            const carShape = new CANNON.Box(new CANNON.Vec3(carWidth/2, carHeight/2, carLength/2));
+            carBody = new CANNON.Body({
+                mass: 150,
+                shape: carShape,
+                linearDamping: 0.1,
+                angularDamping: 0.4
+            });
+            carBody.position.set(0, 3, 20);
+            world.addBody(carBody);
+
+            const carGeo = new THREE.BoxGeometry(carWidth, carHeight, carLength);
+            const carMat = new THREE.MeshStandardMaterial({
+                color: 0x3b82f6,
+                roughness: 0.3,
+                metalness: 0.8
+            });
+            carMesh = new THREE.Mesh(carGeo, carMat);
+            carMesh.castShadow = true;
+            scene.add(carMesh);
+
+            const spoiler = new THREE.Mesh(new THREE.BoxGeometry(carWidth * 0.9, 0.3, 0.6), carMat);
+            spoiler.position.set(0, carHeight/2 + 0.1, -carLength/2 + 0.4);
+            carMesh.add(spoiler);
+        }
+
+        function handleKey(e, isDown) {
+            switch(e.key.toLowerCase()) {
+                case 'w':
+                case 'arrowup':
+                    keys.w = isDown;
+                    break;
+                case 's':
+                case 'arrowdown':
+                    keys.s = isDown;
+                    break;
+                case 'a':
+                case 'arrowleft':
+                    keys.a = isDown;
+                    break;
+                case 'd':
+                case 'arrowright':
+                    keys.d = isDown;
+                    break;
+                case ' ':
+                    if (isDown && !keys.space) {
+                        tryJump();
+                    }
+                    keys.space = isDown;
+                    break;
+                case 'shift':
+                    keys.shift = isDown;
+                    break;
+                case 'r':
+                    if (isDown) resetPositions();
+                    break;
+            }
+        }
+
+        function tryJump() {
+            const raycast = new CANNON.Ray(carBody.position, new CANNON.Vec3(carBody.position.x, carBody.position.y - 1.5, carBody.position.z));
+            const result = new CANNON.RaycastResult();
+            world.raycastClosest(carBody.position, new CANNON.Vec3(carBody.position.x, carBody.position.y - 1.5, carBody.position.z), {}, result);
+
+            if (result.hasHit || carBody.position.y < 2.0) {
+                carBody.velocity.y += 12;
+                doubleJumpAvailable = true;
+                isAirborne = true;
+            } else if (doubleJumpAvailable) {
+                carBody.velocity.y += 10;
+                const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(carMesh.quaternion);
+                carBody.velocity.x += forward.x * 15;
+                carBody.velocity.z += forward.z * 15;
+                doubleJumpAvailable = false;
+            }
+        }
+
+        function resetPositions() {
+            carBody.position.set(0, 3, 20);
+            carBody.velocity.set(0, 0, 0);
+            carBody.angularVelocity.set(0, 0, 0);
+            carBody.quaternion.set(0, 0, 0, 1);
+
+            ballBody.position.set(0, 3, 0);
+            ballBody.velocity.set(0, 0, 0);
+            ballBody.angularVelocity.set(0, 0, 0);
+        }
+
+        function scored(team) {
+            isGoalScored = true;
+            if (team === 'blue') blueScore++;
+            else orangeScore++;
+
+            document.getElementById('blue-score').innerText = blueScore;
+            document.getElementById('orange-score').innerText = orangeScore;
+
+            const msg = document.getElementById('goal-message');
+            msg.innerText = team === 'blue' ? 'Blue Team Scores!' : 'Orange Team Scores!';
+            msg.style.color = team === 'blue' ? '#3b82f6' : '#f97316';
+            msg.classList.add('show');
+
+            setTimeout(() => {
+                msg.classList.remove('show');
+                resetPositions();
+                isGoalScored = false;
+            }, 2000);
+        }
+
+        function updatePhysics(dt) {
+            world.step(1 / 60, dt, 3);
+
+            const forwardVector = new THREE.Vector3(0, 0, -1).applyQuaternion(carMesh.quaternion);
+            const currentSpeed = carBody.velocity.dot(new CANNON.Vec3(forwardVector.x, forwardVector.y, forwardVector.z));
+
+            if (keys.w) {
+                carBody.velocity.x += forwardVector.x * 25 * dt;
+                carBody.velocity.z += forwardVector.z * 25 * dt;
+            }
+            if (keys.s) {
+                carBody.velocity.x -= forwardVector.x * 15 * dt;
+                carBody.velocity.z -= forwardVector.z * 15 * dt;
+            }
+
+            if (keys.a) {
+                carBody.angularVelocity.y += 3.5 * dt;
+            }
+            if (keys.d) {
+                carBody.angularVelocity.y -= 3.5 * dt;
+            }
+
+            if (keys.shift && boostAmount > 0) {
+                carBody.velocity.x += forwardVector.x * 45 * dt;
+                carBody.velocity.z += forwardVector.z * 45 * dt;
+                boostAmount = Math.max(0, boostAmount - 35 * dt);
+            } else if (!keys.shift && boostAmount < 100) {
+                boostAmount = Math.min(100, boostAmount + 15 * dt);
+            }
+
+            document.getElementById('boost-fill').style.width = boostAmount + '%';
+
+            carMesh.position.copy(carBody.position);
+            carMesh.quaternion.copy(carBody.quaternion);
+
+            ballMesh.position.copy(ballBody.position);
+            ballMesh.quaternion.copy(ballBody.quaternion);
+
+            const targetCameraPos = new THREE.Vector3(
+                carMesh.position.x,
+                carMesh.position.y + 5,
+                carMesh.position.z + 12
+            );
+            camera.position.lerp(targetCameraPos, 0.1);
+            camera.lookAt(carMesh.position.x, carMesh.position.y + 1, carMesh.position.z);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = clock.getDelta();
+            updatePhysics(dt);
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
