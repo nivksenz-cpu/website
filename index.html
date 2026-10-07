@@ -1,467 +1,539 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rocket League Mini-Game</title>
+    <title>Gesamtschule Walsum - Duisburg</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <style>
-        body { margin: 0; overflow: hidden; background: #0b0f19; font-family: 'Inter', sans-serif; user-select: none; }
-        canvas { display: block; width: 100vw; height: 100vh; }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1e3a8a',
+                        secondary: '#3b82f6',
+                        accent: '#f59e0b',
+                        darkBg: '#0f172a',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
 </head>
-<body class="bg-slate-950 text-white">
+<body class="bg-slate-50 text-slate-800 font-sans antialiased">
 
-    <div id="hud" class="absolute top-0 left-0 w-full p-6 flex justify-between items-start pointer-events-none z-10">
-        <div class="flex items-center gap-6 bg-slate-900/80 backdrop-blur-md px-6 py-3 rounded-2xl border border-slate-800 shadow-2xl">
-            <div class="text-center">
-                <span class="text-xs uppercase tracking-widest text-blue-400 font-bold block">Blue Team</span>
-                <span id="blue-score" class="text-4xl font-black">0</span>
+    <header class="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-12 h-12 bg-primary rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-md">
+                    GW
+                </div>
+                <div>
+                    <span class="block font-bold text-lg text-slate-900 leading-tight">Gesamtschule Walsum</span>
+                    <span class="block text-xs text-slate-500 font-medium">Duisburg</span>
+                </div>
             </div>
-            <span class="text-2xl font-bold text-slate-600">:</span>
-            <div class="text-center">
-                <span class="text-xs uppercase tracking-widest text-orange-400 font-bold block">Orange Team</span>
-                <span id="orange-score" class="text-4xl font-black">0</span>
+            <nav class="hidden md:flex items-center space-x-8 text-sm font-medium text-slate-600">
+                <a href="#startseite" class="hover:text-primary transition-colors">Startseite</a>
+                <a href="#leitbild" class="hover:text-primary transition-colors">Leitbild</a>
+                <a href="#ganztag" class="hover:text-primary transition-colors">Ganztag & Gebäude</a>
+                <a href="#oberstufe" class="hover:text-primary transition-colors">Oberstufe & Beruf</a>
+                <a href="#aktuelles" class="hover:text-primary transition-colors">Aktuelles</a>
+                <a href="#kontakt" class="hover:text-primary transition-colors">Kontakt</a>
+            </nav>
+            <div class="flex items-center space-x-4">
+                <a href="#kontakt" class="hidden sm:inline-flex items-center justify-center bg-primary hover:bg-blue-900 text-white text-sm font-medium px-5 py-2.5 rounded-xl shadow transition-all">
+                    <span>Schulbüro</span>
+                </a>
+                <button id="mobile-menu-btn" class="md:hidden text-slate-600 hover:text-slate-900 text-xl focus:outline-none">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
             </div>
         </div>
+        <div id="mobile-menu" class="hidden md:hidden bg-white border-b border-slate-200 px-4 pt-2 pb-4 space-y-2">
+            <a href="#startseite" class="block py-2 text-slate-600 hover:text-primary font-medium">Startseite</a>
+            <a href="#leitbild" class="block py-2 text-slate-600 hover:text-primary font-medium">Leitbild</a>
+            <a href="#ganztag" class="block py-2 text-slate-600 hover:text-primary font-medium">Ganztag & Gebäude</a>
+            <a href="#oberstufe" class="block py-2 text-slate-600 hover:text-primary font-medium">Oberstufe & Beruf</a>
+            <a href="#aktuelles" class="block py-2 text-slate-600 hover:text-primary font-medium">Aktuelles</a>
+            <a href="#kontakt" class="block py-2 text-slate-600 hover:text-primary font-medium">Kontakt</a>
+        </div>
+    </header>
 
-        <div class="flex flex-col items-end gap-2 bg-slate-900/80 backdrop-blur-md px-6 py-4 rounded-2xl border border-slate-800 shadow-2xl w-64">
-            <div class="flex justify-between w-full text-sm font-semibold">
-                <span class="text-cyan-400 tracking-wider">BOOST</span>
-                <span id="boost-text" class="text-cyan-400 font-mono">100%</span>
-            </div>
-            <div class="w-full bg-slate-800 h-3 rounded-full overflow-hidden p-0.5 border border-slate-700">
-                <div id="boost-bar" class="bg-gradient-to-r from-cyan-500 to-blue-500 h-full rounded-full transition-all duration-75" style="width: 100%;"></div>
-            </div>
-            <div class="flex justify-between w-full text-xs text-slate-400 mt-1">
-                <span>Cam: <strong id="cam-mode" class="text-white">Car Cam</strong></span>
-                <span>Speed: <strong id="speed-val" class="text-white">0</strong> km/h</span>
+    <section id="startseite" class="relative bg-gradient-to-br from-primary via-blue-900 to-slate-900 text-white overflow-hidden py-24 lg:py-32">
+        <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#3b82f6_1px,transparent_1px)] [background-size:16px_16px]"></div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+                <div class="lg:col-span-7 space-y-6">
+                    <div class="inline-flex items-center space-x-2 bg-blue-500/20 border border-blue-400/30 rounded-full px-4 py-1.5 text-blue-200 text-sm font-medium">
+                        <i class="fa-solid fa-graduation-cap"></i>
+                        <span>Schule ohne Rassismus – Schule mit Courage</span>
+                    </div>
+                    <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight">
+                        Die Stadtteilschule für alle Kinder
+                    </h1>
+                    <p class="text-lg sm:text-xl text-slate-300 max-w-2xl leading-relaxed">
+                        An der Gesamtschule Walsum fördern und fordern wir individuelle Stärken in einer modernen, chancengerechten und wertschätzenden Lernumgebung mitten in Duisburg.
+                    </p>
+                    <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 pt-4">
+                        <a href="#leitbild" class="inline-flex items-center justify-center bg-accent hover:bg-amber-600 text-slate-950 font-bold px-6 py-3.5 rounded-xl shadow-lg transition-all">
+                            <span>Unser Leitbild entdecken</span>
+                            <i class="fa-solid fa-arrow-right ml-2"></i>
+                        </a>
+                        <a href="#kontakt" class="inline-flex items-center justify-center bg-white/10 hover:bg-white/20 text-white border border-white/20 font-semibold px-6 py-3.5 rounded-xl transition-all">
+                            <span>Tag der offenen Tür</span>
+                        </a>
+                    </div>
+                </div>
+                <div class="lg:col-span-5">
+                    <div class="bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-8 shadow-2xl space-y-6">
+                        <h3 class="text-xl font-bold border-b border-white/10 pb-4 text-blue-100 flex items-center justify-between">
+                            <span>Schulprofil auf einen Blick</span>
+                            <i class="fa-solid fa-chart-pie text-accent"></i>
+                        </h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-white/5 p-4 rounded-2xl border border-white/10 text-center">
+                                <span class="block text-3xl font-extrabold text-accent">~1.300</span>
+                                <span class="text-xs text-slate-300 uppercase tracking-wider font-medium">Schülerinnen & Schüler</span>
+                            </div>
+                            <div class="bg-white/5 p-4 rounded-2xl border border-white/10 text-center">
+                                <span class="block text-3xl font-extrabold text-accent">~100</span>
+                                <span class="text-xs text-slate-300 uppercase tracking-wider font-medium">Lehrkräfte</span>
+                            </div>
+                        </div>
+                        <div class="space-y-3 pt-2 text-sm text-slate-300">
+                            <div class="flex items-center space-x-3">
+                                <i class="fa-solid fa-circle-check text-accent"></i>
+                                <span>Gebundene Ganztagsschule mit System</span>
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <i class="fa-solid fa-circle-check text-accent"></i>
+                                <span>Abitur nach G9 (Sekundarstufe I & II)</span>
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <i class="fa-solid fa-circle-check text-accent"></i>
+                                <span>Mehrere Lernstandorte in Duisburg-Walsum</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
+    </section>
 
-    <div class="absolute bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur-md px-6 py-3 rounded-2xl border border-slate-800 shadow-2xl pointer-events-none z-10 flex gap-6 text-xs text-slate-300">
-        <div><span class="text-cyan-400 font-bold">W/S</span> Throttle / Pitch</div>
-        <div><span class="text-cyan-400 font-bold">A/D</span> Steer / Roll</div>
-        <div><span class="text-cyan-400 font-bold">K</span> Jump</div>
-        <div><span class="text-cyan-400 font-bold">J</span> Boost</div>
-        <div><span class="text-cyan-400 font-bold">Space</span> Ball Cam</div>
-        <div><span class="text-cyan-400 font-bold">Delete</span> Reset</div>
-    </div>
+    <section class="py-12 bg-white border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 text-center">
+                <div class="p-6 rounded-2xl bg-slate-50 border border-slate-100 hover:shadow-md transition-all">
+                    <div class="w-12 h-12 bg-blue-100 text-primary rounded-xl flex items-center justify-center mx-auto mb-4 text-xl">
+                        <i class="fa-solid fa-users"></i>
+                    </div>
+                    <h4 class="font-bold text-slate-900 text-lg">Gemeinschaft</h4>
+                    <p class="text-sm text-slate-500 mt-1">Starkes Miteinander von Schülern, Lehrern und Eltern.</p>
+                </div>
+                <div class="p-6 rounded-2xl bg-slate-50 border border-slate-100 hover:shadow-md transition-all">
+                    <div class="w-12 h-12 bg-blue-100 text-primary rounded-xl flex items-center justify-center mx-auto mb-4 text-xl">
+                        <i class="fa-solid fa-award"></i>
+                    </div>
+                    <h4 class="font-bold text-slate-900 text-lg">Leistung</h4>
+                    <p class="text-sm text-slate-500 mt-1">Individuelle Förderung und gezielte Forderung.</p>
+                </div>
+                <div class="p-6 rounded-2xl bg-slate-50 border border-slate-100 hover:shadow-md transition-all">
+                    <div class="w-12 h-12 bg-blue-100 text-primary rounded-xl flex items-center justify-center mx-auto mb-4 text-xl">
+                        <i class="fa-solid fa-clock"></i>
+                    </div>
+                    <h4 class="font-bold text-slate-900 text-lg">Ganztag</h4>
+                    <p class="text-sm text-slate-500 mt-1">Strukturierter Alltag mit Mittagessen und AGs.</p>
+                </div>
+                <div class="p-6 rounded-2xl bg-slate-50 border border-slate-100 hover:shadow-md transition-all">
+                    <div class="w-12 h-12 bg-blue-100 text-primary rounded-xl flex items-center justify-center mx-auto mb-4 text-xl">
+                        <i class="fa-solid fa-briefcase"></i>
+                    </div>
+                    <h4 class="font-bold text-slate-900 text-lg">Zukunft</h4>
+                    <p class="text-sm text-slate-500 mt-1">Hervorragende Berufsorientierung und Oberstufe.</p>
+                </div>
+            </div>
+        </div>
+    </section>
 
-    <div id="goal-banner" class="absolute inset-0 flex items-center justify-center pointer-events-none z-20 opacity-0 transition-opacity duration-300">
-        <h1 id="goal-text" class="text-7xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)] scale-75 transition-transform duration-300">GOAL!</h1>
-    </div>
+    <section id="leitbild" class="py-20 bg-slate-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center max-w-3xl mx-auto space-y-4 mb-16">
+                <span class="text-primary font-bold text-sm tracking-widest uppercase bg-blue-100 px-3.5 py-1.5 rounded-full">Unser Selbstverständnis</span>
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900">Leitbild der Gesamtschule Walsum</h2>
+                <p class="text-slate-600 text-lg">Wir verstehen Schule als Lebensraum. Unser Handeln stützt sich auf drei zentrale Säulen, die unseren Alltag prägen.</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between">
+                    <div>
+                        <div class="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center text-2xl mb-6">
+                            <i class="fa-solid fa-rocket"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold text-slate-900 mb-4">Leistungsorientiert</h3>
+                        <p class="text-slate-600 leading-relaxed">
+                            Wir fordern und fördern jedes Kind entsprechend seiner Potenziale. Durch differenzierten Unterricht, moderne Medien und gezielte Lernförderung bereiten wir unsere Schüler optimal auf Schulabschlüsse bis zum Abitur vor.
+                        </p>
+                    </div>
+                    <div class="mt-8 pt-4 border-t border-slate-100 flex items-center text-sm font-semibold text-primary">
+                        <span>Individuelle Lernwege</span>
+                        <i class="fa-solid fa-chevron-right ml-2 text-xs"></i>
+                    </div>
+                </div>
+                <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between">
+                    <div>
+                        <div class="w-14 h-14 bg-blue-100 text-primary rounded-2xl flex items-center justify-center text-2xl mb-6">
+                            <i class="fa-solid fa-handshake-angle"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold text-slate-900 mb-4">Sozial engagiert</h3>
+                        <p class="text-slate-600 leading-relaxed">
+                            Respekt, Toleranz und Verantwortung stehen bei uns an erster Stelle. Als „Schule ohne Rassismus“ leben wir ein friedliches Miteinander und übernehmen soziale Verantwortung im Stadtteil Walsum.
+                        </p>
+                    </div>
+                    <div class="mt-8 pt-4 border-t border-slate-100 flex items-center text-sm font-semibold text-primary">
+                        <span>Verantwortung übernehmen</span>
+                        <i class="fa-solid fa-chevron-right ml-2 text-xs"></i>
+                    </div>
+                </div>
+                <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between">
+                    <div>
+                        <div class="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center text-2xl mb-6">
+                            <i class="fa-solid fa-people-group"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold text-slate-900 mb-4">Miteinander</h3>
+                        <p class="text-slate-600 leading-relaxed">
+                            Schule gelingt nur im engen Schulterschluss von Schülern, Lehrkräften und Eltern. Ein positives Schulklima, gegenseitige Wertschätzung und ein starker Teamgeist machen unsere Gesamtschule aus.
+                        </p>
+                    </div>
+                    <div class="mt-8 pt-4 border-t border-slate-100 flex items-center text-sm font-semibold text-primary">
+                        <span>Gemeinschaft erleben</span>
+                        <i class="fa-solid fa-chevron-right ml-2 text-xs"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="ganztag" class="py-20 bg-white border-t border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center max-w-3xl mx-auto space-y-4 mb-16">
+                <span class="text-primary font-bold text-sm tracking-widest uppercase bg-blue-100 px-3.5 py-1.5 rounded-full">Organisation & Raum</span>
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900">Ganztag & Standorte</h2>
+                <p class="text-slate-600 text-lg">Ein strukturierter Tagesablauf und moderne Gebäude bieten den optimalen Rahmen für den Lernerfolg.</p>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                <div class="space-y-6">
+                    <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                        <div class="flex items-start space-x-4">
+                            <div class="w-12 h-12 bg-primary text-white rounded-xl flex items-center justify-center flex-shrink-0 text-xl font-bold">
+                                <i class="fa-solid fa-sun"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-xl font-bold text-slate-900 mb-1">Der gebundene Ganztag</h4>
+                                <p class="text-slate-600 text-sm leading-relaxed">
+                                    Lernzeiten, Förderangebote und Freizeit wechseln sich ab. Gemeinsames Mittagessen in der Mensa und vielfältige Arbeitsgemeinschaften (AGs) prägen den Schultag bis nachmittags.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                        <div class="flex items-start space-x-4">
+                            <div class="w-12 h-12 bg-primary text-white rounded-xl flex items-center justify-center flex-shrink-0 text-xl font-bold">
+                                <i class="fa-solid fa-book-open"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-xl font-bold text-slate-900 mb-1">G9 – Mehr Zeit fürs Abitur</h4>
+                                <p class="text-slate-600 text-sm leading-relaxed">
+                                    Mit dem neunjährigen Bildungsgang zur Reifeprüfung geben wir unseren Schülerinnen und Schülern die nötige Zeit für Wissensvertiefung, Persönlichkeitsentwicklung und soziale Projekte.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-2xl font-bold text-slate-900 mb-6 flex items-center">
+                        <i class="fa-solid fa-location-dot text-primary mr-3"></i>
+                        <span>Unsere Standorte in Walsum</span>
+                    </h3>
+                    <div class="space-y-4" id="accordion-container">
+                        <div class="border border-slate-200 rounded-2xl overflow-hidden bg-slate-50">
+                            <button class="accordion-header w-full px-6 py-4 text-left font-bold text-slate-900 flex justify-between items-center focus:outline-none">
+                                <span>Waldstraße (Hauptstandort Sek I)</span>
+                                <i class="fa-solid fa-chevron-down text-slate-400 transition-transform"></i>
+                            </button>
+                            <div class="accordion-content px-6 pb-4 text-slate-600 text-sm hidden">
+                                Der Hauptstandort an der Waldstraße bietet modern ausgestattete Fachräume für Naturwissenschaften, Kunst und Musik sowie großzügige Aufenthaltsbereiche für den Ganztag.
+                            </div>
+                        </div>
+                        <div class="border border-slate-200 rounded-2xl overflow-hidden bg-slate-50">
+                            <button class="accordion-header w-full px-6 py-4 text-left font-bold text-slate-900 flex justify-between items-center focus:outline-none">
+                                <span>Nachtigallensteig</span>
+                                <i class="fa-solid fa-chevron-down text-slate-400 transition-transform"></i>
+                            </button>
+                            <div class="accordion-content px-6 pb-4 text-slate-600 text-sm hidden">
+                                Ein weiterer wichtiger Lernort, der passgenau in das pädagogische Konzept eingebunden ist und kurze Wege innerhalb des Stadtteils sichert.
+                            </div>
+                        </div>
+                        <div class="border border-slate-200 rounded-2xl overflow-hidden bg-slate-50">
+                            <button class="accordion-header w-full px-6 py-4 text-left font-bold text-slate-900 flex justify-between items-center focus:outline-none">
+                                <span>Beckersloh</span>
+                                <i class="fa-solid fa-chevron-down text-slate-400 transition-transform"></i>
+                            </button>
+                            <div class="accordion-content px-6 pb-4 text-slate-600 text-sm hidden">
+                                Der Standort Beckersloh bietet zusätzliche Räumlichkeiten und ruhige Lernzonen, die besonders für bestimmte Jahrgangsstufen genutzt werden.
+                            </div>
+                        </div>
+                        <div class="border border-slate-200 rounded-2xl overflow-hidden bg-slate-50">
+                            <button class="accordion-header w-full px-6 py-4 text-left font-bold text-slate-900 flex justify-between items-center focus:outline-none">
+                                <span>Kurze Straße (Verwaltung & Oberstufe)</span>
+                                <i class="fa-solid fa-chevron-down text-slate-400 transition-transform"></i>
+                            </button>
+                            <div class="accordion-content px-6 pb-4 text-slate-600 text-sm hidden">
+                                Die zentrale Anlaufstelle mit dem Schulbüro und modernen Kursräumen für die gymnasiale Oberstufe.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="oberstufe" class="py-20 bg-slate-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center max-w-3xl mx-auto space-y-4 mb-16">
+                <span class="text-primary font-bold text-sm tracking-widest uppercase bg-blue-100 px-3.5 py-1.5 rounded-full">Perspektiven schaffen</span>
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900">Oberstufe & Berufsorientierung</h2>
+                <p class="text-slate-600 text-lg">Vom erfolgreichen Schulabschluss bis zum direkten Start in Ausbildung oder Studium – wir begleiten den Weg.</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+                    <div class="w-12 h-12 bg-blue-100 text-primary rounded-2xl flex items-center justify-center text-xl mb-6 font-bold">
+                        <i class="fa-solid fa-graduation-cap"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-slate-900 mb-4">Gymnasiale Oberstufe</h3>
+                    <p class="text-slate-600 leading-relaxed mb-6">
+                        Unsere Oberstufe bietet ein breites Leistungskursangebot, individuelle Beratung durch erfahrene Stufenleiter und eine angenehme Lernatmosphäre in modernen Kursräumen. Unser Ziel ist das allgemeine Abitur (G9).
+                    </p>
+                    <ul class="space-y-3 text-sm text-slate-700">
+                        <li class="flex items-center"><i class="fa-solid fa-check text-emerald-500 mr-3"></i> Engmaschige Betreuung im Zentralabitur</li>
+                        <li class="flex items-center"><i class="fa-solid fa-check text-emerald-500 mr-3"></i> Vielfältige sprachliche und naturwissenschaftliche Schwerpunkte</li>
+                        <li class="flex items-center"><i class="fa-solid fa-check text-emerald-500 mr-3"></i> Moderne digitale Ausstattung (Tablets / Laptops)</li>
+                    </ul>
+                </div>
+                <div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+                    <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center text-xl mb-6 font-bold">
+                        <i class="fa-solid fa-briefcase"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-slate-900 mb-4">Berufsorientierung (KAoA)</h3>
+                    <p class="text-slate-600 leading-relaxed mb-6">
+                        Kein Abschluss ohne Anschluss! Wir unterstützen unsere Jugendlichen systematisch bei der Berufswahl durch Betriebspraktika, Berufsberatung im Haus, Bewerbungstrainings und Kooperationen mit Unternehmen in Duisburg.
+                    </p>
+                    <ul class="space-y-3 text-sm text-slate-700">
+                        <li class="flex items-center"><i class="fa-solid fa-check text-emerald-500 mr-3"></i> Praxisphasen und Betriebspraktika</li>
+                        <li class="flex items-center"><i class="fa-solid fa-check text-emerald-500 mr-3"></i> Feste Kooperationspartner aus Industrie und Handwerk</li>
+                        <li class="flex items-center"><i class="fa-solid fa-check text-emerald-500 mr-3"></i> Individuelles Coaching für Ausbildung oder Studium</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="aktuelles" class="py-20 bg-white border-t border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row md:items-end justify-between mb-16">
+                <div>
+                    <span class="text-primary font-bold text-sm tracking-widest uppercase bg-blue-100 px-3.5 py-1.5 rounded-full">News & Termine</span>
+                    <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900 mt-4">Aktuelles aus der Schule</h2>
+                </div>
+                <a href="#kontakt" class="mt-4 md:mt-0 text-primary font-semibold hover:underline inline-flex items-center">
+                    <span>Alle Termine anzeigen</span>
+                    <i class="fa-solid fa-arrow-right ml-2 text-xs"></i>
+                </a>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="bg-slate-50 rounded-3xl overflow-hidden border border-slate-200 hover:shadow-lg transition-all flex flex-col justify-between">
+                    <div>
+                        <div class="h-48 bg-slate-200 relative overflow-hidden flex items-center justify-center text-slate-400">
+                            <i class="fa-solid fa-calendar-days text-4xl"></i>
+                        </div>
+                        <div class="p-6 space-y-3">
+                            <span class="inline-block bg-blue-100 text-primary text-xs font-bold px-3 py-1 rounded-full">Termin</span>
+                            <h3 class="text-xl font-bold text-slate-900">Tag der offenen Tür 2026</h3>
+                            <p class="text-slate-600 text-sm leading-relaxed">
+                                Erleben Sie unsere Schule live! Wir laden alle interessierten Viertklässler und deren Eltern herzlich ein, unseren Campus zu besuchen und Einblicke zu gewinnen.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="px-6 pb-6 pt-2 flex items-center text-xs text-slate-400 font-medium">
+                        <i class="fa-regular fa-clock mr-2"></i> Kürzlich veröffentlicht
+                    </div>
+                </div>
+                <div class="bg-slate-50 rounded-3xl overflow-hidden border border-slate-200 hover:shadow-lg transition-all flex flex-col justify-between">
+                    <div>
+                        <div class="h-48 bg-slate-200 relative overflow-hidden flex items-center justify-center text-slate-400">
+                            <i class="fa-solid fa-trophy text-4xl"></i>
+                        </div>
+                        <div class="p-6 space-y-3">
+                            <span class="inline-block bg-amber-100 text-amber-700 text-xs font-bold px-3 py-1 rounded-full">Erfolg</span>
+                            <h3 class="text-xl font-bold text-slate-900">Sportfest im Bezirk Walsum</h3>
+                            <p class="text-slate-600 text-sm leading-relaxed">
+                                Großartige Leistungen, Teamgeist und jede Menge Spaß beim diesjährigen Leichtathletik-Sportfest unserer Unter- und Mittelstufenklassen.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="px-6 pb-6 pt-2 flex items-center text-xs text-slate-400 font-medium">
+                        <i class="fa-regular fa-clock mr-2"><span> vor 3 Tagen</span></i>
+                    </div>
+                </div>
+                <div class="bg-slate-50 rounded-3xl overflow-hidden border border-slate-200 hover:shadow-lg transition-all flex flex-col justify-between">
+                    <div>
+                        <div class="h-48 bg-slate-200 relative overflow-hidden flex items-center justify-center text-slate-400">
+                            <i class="fa-solid fa-newspaper text-4xl"></i>
+                        </div>
+                        <div class="p-6 space-y-3">
+                            <span class="inline-block bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1 rounded-full">Projekt</span>
+                            <h3 class="text-xl font-bold text-slate-900">Projektwoche Umweltschutz</h3>
+                            <p class="text-slate-600 text-sm leading-relaxed">
+                                Nachhaltigkeit im Alltag: Schülerinnen und Schüler präsentieren kreative Ergebnisse aus den Workshops zum Thema Klimaschutz und Recycling.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="px-6 pb-6 pt-2 flex items-center text-xs text-slate-400 font-medium">
+                        <i class="fa-regular fa-clock mr-2"><span> vor 1 Woche</span></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="kontakt" class="py-20 bg-slate-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center max-w-3xl mx-auto space-y-4 mb-16">
+                <span class="text-primary font-bold text-sm tracking-widest uppercase bg-blue-100 px-3.5 py-1.5 rounded-full">Kontakt</span>
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900">Wir sind für Sie da</h2>
+                <p class="text-slate-600 text-lg">Haben Sie Fragen zur Anmeldung, zum Ganztag oder zu unserer Schule? Nehmen Sie gerne Kontakt auf.</p>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
+                <div class="lg:col-span-5 space-y-6">
+                    <div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+                        <h3 class="text-2xl font-bold text-slate-900">Kontaktdaten</h3>
+                        <div class="space-y-4 text-slate-600">
+                            <div class="flex items-start space-x-4">
+                                <div class="w-10 h-10 bg-blue-100 text-primary rounded-xl flex items-center justify-center flex-shrink-0 mt-1">
+                                    <i class="fa-solid fa-location-dot"></i>
+                                </div>
+                                <div>
+                                    <strong class="block text-slate-900">Adresse</strong>
+                                    <span>Kurze Straße 51<br>47179 Duisburg</span>
+                                </div>
+                            </div>
+                            <div class="flex items-start space-x-4">
+                                <div class="w-10 h-10 bg-blue-100 text-primary rounded-xl flex items-center justify-center flex-shrink-0 mt-1">
+                                    <i class="fa-solid fa-phone"></i>
+                                </div>
+                                <div>
+                                    <strong class="block text-slate-900">Telefon</strong>
+                                    <span>Sekretariat erreichbar zu den Öffnungszeiten</span>
+                                </div>
+                            </div>
+                            <div class="flex items-start space-x-4">
+                                <div class="w-10 h-10 bg-blue-100 text-primary rounded-xl flex items-center justify-center flex-shrink-0 mt-1">
+                                    <i class="fa-solid fa-envelope"></i>
+                                </div>
+                                <div>
+                                    <strong class="block text-slate-900">E-Mail</strong>
+                                    <span>info@gesamtschule-walsum.de</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="lg:col-span-7">
+                    <div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+                        <h3 class="text-2xl font-bold text-slate-900 mb-6">Schreiben Sie uns</h3>
+                        <form onsubmit="event.preventDefault(); showSuccessMessage();" class="space-y-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Ihr Name</label>
+                                    <input type="text" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary focus:border-transparent outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">E-Mail-Adresse</label>
+                                    <input type="email" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary focus:border-transparent outline-none">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Betreff</label>
+                                <input type="text" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary focus:border-transparent outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Nachricht</label>
+                                <textarea rows="4" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"></textarea>
+                            </div>
+                            <button type="submit" class="w-full bg-primary hover:bg-blue-900 text-white font-bold py-3.5 rounded-xl shadow transition-all">
+                                Nachricht absenden
+                            </button>
+                            <div id="success-box" class="hidden p-4 bg-emerald-50 text-emerald-800 rounded-xl text-sm font-medium text-center">
+                                Vielen Dank! Ihre Nachricht wurde erfolgreich versendet.
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="bg-darkBg text-slate-400 py-12 border-t border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white font-bold">
+                    GW
+                </div>
+                <span class="text-white font-bold text-lg">Gesamtschule Walsum</span>
+            </div>
+            <p class="text-sm text-center">© 2026 Gesamtschule Walsum Duisburg. Alle Rechte vorbehalten.</p>
+            <div class="flex space-x-6 text-sm">
+                <a href="#kontakt" class="hover:text-white transition-colors">Impressum</a>
+                <a href="#kontakt" class="hover:text-white transition-colors">Datenschutz</a>
+            </div>
+        </div>
+    </footer>
 
     <script>
-        const keys = { w: false, a: false, s: false, d: false, j: false, k: false, space: false };
-        let ballCam = false;
-        let blueScore = 0;
-        let orangeScore = 0;
-
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') keys.w = true;
-            if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') keys.s = true;
-            if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') keys.a = true;
-            if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') keys.d = true;
-            if (e.key === 'j' || e.key === 'J') keys.j = true;
-            if (e.key === 'k' || e.key === 'K') keys.k = true;
-            if (e.key === ' ') {
-                e.preventDefault();
-                ballCam = !ballCam;
-                document.getElementById('cam-mode').innerText = ballCam ? 'Ball Cam' : 'Car Cam';
-            }
-            if (e.key === 'Delete' || e.key === 'Backspace') {
-                resetPositions();
-            }
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+        mobileMenuBtn.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
         });
 
-        window.addEventListener('keyup', (e) => {
-            if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') keys.w = false;
-            if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') keys.s = false;
-            if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') keys.a = false;
-            if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') keys.d = false;
-            if (e.key === 'j' || e.key === 'J') keys.j = false;
-            if (e.key === 'k' || e.key === 'K') keys.k = false;
+        const accordions = document.querySelectorAll('.accordion-header');
+        accordions.forEach(header => {
+            header.addEventListener('click', () => {
+                const content = header.nextElementSibling;
+                const icon = header.querySelector('i');
+                const isOpen = !content.classList.contains('hidden');
+                
+                document.querySelectorAll('.accordion-content').forEach(c => c.classList.add('hidden'));
+                document.querySelectorAll('.accordion-header i').forEach(i => i.classList.remove('rotate-180'));
+
+                if (!isOpen) {
+                    content.classList.remove('hidden');
+                    icon.classList.add('rotate-180');
+                }
+            });
         });
 
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x060913);
-        scene.fog = new THREE.FogExp2(0x060913, 0.003);
-
-        const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        document.body.appendChild(renderer.domElement);
-
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-        scene.add(ambientLight);
-
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
-        dirLight.position.set(0, 150, 100);
-        dirLight.castShadow = true;
-        dirLight.shadow.mapSize.width = 2048;
-        dirLight.shadow.mapSize.height = 2048;
-        dirLight.shadow.camera.near = 0.5;
-        dirLight.shadow.camera.far = 500;
-        const d = 120;
-        dirLight.shadow.camera.left = -d;
-        dirLight.shadow.camera.right = d;
-        dirLight.shadow.camera.top = d;
-        dirLight.shadow.camera.bottom = -d;
-        scene.add(dirLight);
-
-        const fieldWidth = 140;
-        const fieldLength = 220;
-        const wallHeight = 25;
-
-        const floorGeo = new THREE.PlaneGeometry(fieldWidth, fieldLength);
-        const floorMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.8, metalness: 0.2 });
-        const floor = new THREE.Mesh(floorGeo, floorMat);
-        floor.rotation.x = -Math.PI / 2;
-        floor.receiveShadow = true;
-        scene.add(floor);
-
-        const gridHelper = new THREE.GridHelper(fieldLength, 22, 0x3b82f6, 0x1e293b);
-        gridHelper.position.y = 0.1;
-        scene.add(gridHelper);
-
-        const centerCircleGeo = new THREE.RingGeometry(18, 19, 32);
-        const centerMat = new THREE.MeshBasicMaterial({ color: 0x3b82f6, side: THREE.DoubleSide });
-        const centerCircle = new THREE.Mesh(centerCircleGeo, centerMat);
-        centerCircle.rotation.x = -Math.PI / 2;
-        centerCircle.position.y = 0.15;
-        scene.add(centerCircle);
-
-        const wallMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.5, metalness: 0.5 });
-        const leftWall = new THREE.Mesh(new THREE.BoxGeometry(2, wallHeight, fieldLength), wallMat);
-        leftWall.position.set(-fieldWidth/2 - 1, wallHeight/2, 0);
-        leftWall.castShadow = true; leftWall.receiveShadow = true;
-        scene.add(leftWall);
-
-        const rightWall = new THREE.Mesh(new THREE.BoxGeometry(2, wallHeight, fieldLength), wallMat);
-        rightWall.position.set(fieldWidth/2 + 1, wallHeight/2, 0);
-        rightWall.castShadow = true; rightWall.receiveShadow = true;
-        scene.add(rightWall);
-
-        const goalWidth = 40;
-        const goalHeight = 15;
-
-        function createGoal(zPos, colorHex) {
-            const group = new THREE.Group();
-            const postGeo = new THREE.CylinderGeometry(1, 1, goalHeight, 16);
-            const postMat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.3, metalness: 0.8 });
-
-            const p1 = new THREE.Mesh(postGeo, postMat);
-            p1.position.set(-goalWidth/2, goalHeight/2, zPos);
-            p1.castShadow = true;
-            group.add(p1);
-
-            const p2 = new THREE.Mesh(postGeo, postMat);
-            p2.position.set(goalWidth/2, goalHeight/2, zPos);
-            p2.castShadow = true;
-            group.add(p2);
-
-            const crossGeo = new THREE.CylinderGeometry(1, 1, goalWidth, 16);
-            const cross = new THREE.Mesh(crossGeo, postMat);
-            cross.rotation.z = Math.PI / 2;
-            cross.position.set(0, goalHeight, zPos);
-            cross.castShadow = true;
-            group.add(cross);
-
-            return group;
-        }
-
-        scene.add(createGoal(-fieldLength/2, 0x3b82f6));
-        scene.add(createGoal(fieldLength/2, 0xf97316));
-
-        const backWallTopZ = new THREE.Mesh(new THREE.BoxGeometry(fieldWidth, wallHeight - goalHeight, 2), wallMat);
-        backWallTopZ.position.set(0, wallHeight - (wallHeight - goalHeight)/2, -fieldLength/2 - 1);
-        scene.add(backWallTopZ);
-
-        const backWallTopZ2 = new THREE.Mesh(new THREE.BoxGeometry(fieldWidth, wallHeight - goalHeight, 2), wallMat);
-        backWallTopZ2.position.set(0, wallHeight - (wallHeight - goalHeight)/2, fieldLength/2 + 1);
-        scene.add(backWallTopZ2);
-
-        const carGroup = new THREE.Group();
-        const carBody = new THREE.Mesh(
-            new THREE.BoxGeometry(4, 2, 8),
-            new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.3, metalness: 0.8 })
-        );
-        carBody.position.y = 1.2;
-        carBody.castShadow = true;
-        carGroup.add(carBody);
-
-        const carTop = new THREE.Mesh(
-            new THREE.BoxGeometry(3.2, 1.5, 4),
-            new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.1, metalness: 0.9 })
-        );
-        carTop.position.set(0, 2.7, -0.5);
-        carTop.castShadow = true;
-        carGroup.add(carTop);
-
-        const spoiler = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.3, 1), wallMat);
-        spoiler.position.set(0, 3.2, -3.2);
-        spoiler.castShadow = true;
-        carGroup.add(spoiler);
-
-        scene.add(carGroup);
-
-        const ballRadius = 3.5;
-        const ballGeo = new THREE.SphereGeometry(ballRadius, 32, 32);
-        const ballMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.2, metalness: 0.1 });
-        const ball = new THREE.Mesh(ballGeo, ballMat);
-        ball.castShadow = true;
-        scene.add(ball);
-
-        const ballPattern = new THREE.Mesh(
-            new THREE.IcosahedronGeometry(ballRadius * 1.01, 1),
-            new THREE.MeshBasicMaterial({ color: 0x0f172a, wireframe: true })
-        );
-        ball.add(ballPattern);
-
-        let carX = 0, carZ = 40, carY = 0;
-        let carVelX = 0, carVelZ = 0, carVelY = 0;
-        let carYaw = 0;
-        let carPitch = 0;
-        let carRoll = 0;
-        let carSpeed = 0;
-        let boost = 100;
-        let isJumping = false;
-
-        let ballX = 0, ballZ = -30, ballY = ballRadius;
-        let ballVelX = 0, ballVelZ = 0, ballVelY = 0;
-
-        let camPos = new THREE.Vector3(0, 10, 60);
-        let camTarget = new THREE.Vector3(0, 0, 40);
-
-        function resetPositions() {
-            carX = 0; carZ = 40; carY = 0;
-            carVelX = 0; carVelZ = 0; carVelY = 0;
-            carYaw = 0; carPitch = 0; carRoll = 0; carSpeed = 0;
-            boost = 100;
-            isJumping = false;
-
-            ballX = 0; ballZ = -30; ballY = ballRadius;
-            ballVelX = 0; ballVelZ = 0; ballVelY = 0;
-        }
-
-        function showGoal(teamText) {
-            const banner = document.getElementById('goal-banner');
-            const text = document.getElementById('goal-text');
-            text.innerText = teamText + " SCORED!";
-            banner.style.opacity = '1';
-            text.style.transform = 'scale(1)';
+        function showSuccessMessage() {
+            const box = document.getElementById('success-box');
+            box.classList.remove('hidden');
             setTimeout(() => {
-                banner.style.opacity = '0';
-                text.style.transform = 'scale(0.75)';
-                resetPositions();
-            }, 2000);
+                box.classList.add('hidden');
+            }, 5000);
         }
-
-        let clock = new THREE.Clock();
-
-        function animate() {
-            requestAnimationFrame(animate);
-            let dt = clock.getDelta();
-            if (dt > 0.1) dt = 0.1;
-
-            const maxSpeed = 1.3;
-            const acceleration = 0.035;
-            const friction = 0.98;
-            const turnSpeed = 0.045;
-
-            if (carY <= 0.05) {
-                if (keys.w) {
-                    carSpeed += acceleration;
-                    if (carSpeed > maxSpeed) carSpeed = maxSpeed;
-                } else if (keys.s) {
-                    carSpeed -= acceleration;
-                    if (carSpeed < -maxSpeed / 2) carSpeed = -maxSpeed / 2;
-                } else {
-                    carSpeed *= friction;
-                }
-
-                if (keys.j && boost > 0) {
-                    carSpeed += acceleration * 2.5;
-                    boost = Math.max(0, boost - 35 * dt);
-                } else {
-                    boost = Math.min(100, boost + 15 * dt);
-                }
-
-                if (Math.abs(carSpeed) > 0.05) {
-                    if (keys.a) carYaw += turnSpeed * (carSpeed > 0 ? 1 : -1);
-                    if (keys.d) carYaw -= turnSpeed * (carSpeed > 0 ? 1 : -1);
-                }
-
-                carPitch *= 0.8;
-                carRoll *= 0.8;
-
-                if (keys.k && !isJumping) {
-                    carVelY = 0.85;
-                    isJumping = true;
-                }
-            } else {
-                if (keys.w) carPitch -= 2.0 * dt;
-                if (keys.s) carPitch += 2.0 * dt;
-                if (keys.a) carRoll += 2.5 * dt;
-                if (keys.d) carRoll -= 2.5 * dt;
-
-                if (keys.j && boost > 0) {
-                    const forwardDir = new THREE.Vector3(Math.sin(carYaw), Math.sin(-carPitch), Math.cos(carYaw));
-                    carVelX += forwardDir.x * 0.8 * dt * 60;
-                    carVelY += forwardDir.y * 0.8 * dt * 60;
-                    carVelZ += forwardDir.z * 0.8 * dt * 60;
-                    boost = Math.max(0, boost - 45 * dt);
-                } else {
-                    boost = Math.min(100, boost + 15 * dt);
-                }
-            }
-
-            carVelY -= 2.5 * dt;
-            carY += carVelY;
-            if (carY <= 0) {
-                carY = 0;
-                carVelY = 0;
-                isJumping = false;
-            }
-
-            if (carY === 0) {
-                carVelX = Math.sin(carYaw) * carSpeed;
-                carVelZ = Math.cos(carYaw) * carSpeed;
-            } else {
-                carVelX *= 0.99;
-                carVelZ *= 0.99;
-            }
-
-            carX += carVelX;
-            carZ += carVelZ;
-
-            const boundX = fieldWidth / 2 - 3;
-            const boundZ = fieldLength / 2 - 3;
-
-            if (carX < -boundX) { carX = -boundX; carSpeed = 0; carVelX = 0; }
-            if (carX > boundX) { carX = boundX; carSpeed = 0; carVelX = 0; }
-            if (carZ < -boundZ) { carZ = -boundZ; carSpeed = 0; carVelZ = 0; }
-            if (carZ > boundZ) { carZ = boundZ; carSpeed = 0; carVelZ = 0; }
-
-            carGroup.position.set(carX, carY, carZ);
-            carGroup.rotation.set(0, 0, 0);
-            carGroup.rotation.y = carYaw;
-            carGroup.rotation.x = carPitch;
-            carGroup.rotation.z = carRoll;
-
-            ballVelX *= 0.992;
-            ballVelZ *= 0.992;
-            ballVelY -= 0.6 * dt;
-
-            ballX += ballVelX;
-            ballZ += ballVelZ;
-            ballY += ballVelY;
-
-            if (ballY < ballRadius) {
-                ballY = ballRadius;
-                ballVelY = -ballVelY * 0.35;
-                ballVelX *= 0.92;
-                ballVelZ *= 0.92;
-            }
-
-            const ballBoundX = fieldWidth / 2 - ballRadius;
-            const ballBoundZ = fieldLength / 2 - ballRadius;
-
-            if (ballX < -ballBoundX) { ballX = -ballBoundX; ballVelX = -ballVelX * 0.4; }
-            if (ballX > ballBoundX) { ballX = ballBoundX; ballVelX = -ballVelX * 0.4; }
-
-            if (ballZ < -ballBoundZ) {
-                if (Math.abs(ballX) < goalWidth / 2 && ballY < goalHeight) {
-                    if (ballZ < -fieldLength / 2 - 5) {
-                        orangeScore++;
-                        document.getElementById('orange-score').innerText = orangeScore;
-                        showGoal("ORANGE TEAM");
-                    }
-                } else {
-                    ballZ = -ballBoundZ;
-                    ballVelZ = -ballVelZ * 0.4;
-                }
-            } else if (ballZ > ballBoundZ) {
-                if (Math.abs(ballX) < goalWidth / 2 && ballY < goalHeight) {
-                    if (ballZ > fieldLength / 2 + 5) {
-                        blueScore++;
-                        document.getElementById('blue-score').innerText = blueScore;
-                        showGoal("BLUE TEAM");
-                    }
-                } else {
-                    ballZ = ballBoundZ;
-                    ballVelZ = -ballVelZ * 0.4;
-                }
-            }
-
-            const dx = ballX - carX;
-            const dy = ballY - (carY + 1.5);
-            const dz = ballZ - carZ;
-            const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-            const minDist = ballRadius + 3;
-
-            if (dist < minDist) {
-                const nx = dx / dist;
-                const ny = dy / dist;
-                const nz = dz / dist;
-                
-                const carHitForce = Math.sqrt(carVelX * carVelX + carVelZ * carVelZ) * 3.0 + 0.6;
-                ballVelX = nx * carHitForce + carVelX * 1.2;
-                ballVelY = ny * carHitForce + 0.3;
-                ballVelZ = nz * carHitForce + carVelZ * 1.2;
-            }
-
-            ball.position.set(ballX, ballY, ballZ);
-            ball.rotation.x += ballVelZ * 0.05;
-            ball.rotation.z -= ballVelX * 0.05;
-
-            let targetCamPos = new THREE.Vector3();
-            let targetLookAt = new THREE.Vector3();
-
-            if (ballCam) {
-                const carPos = new THREE.Vector3(carX, carY + 2, carZ);
-                const ballPos = new THREE.Vector3(ballX, ballY, ballZ);
-                const dirToBall = new THREE.Vector3().subVectors(ballPos, carPos).normalize();
-                
-                targetCamPos.copy(carPos).sub(dirToBall.multiplyScalar(22)).add(new THREE.Vector3(0, 8, 0));
-                targetLookAt.copy(ballPos).add(carPos).multiplyScalar(0.5);
-            } else {
-                targetCamPos.set(
-                    carX - Math.sin(carYaw) * 22,
-                    carY + 9,
-                    carZ - Math.cos(carYaw) * 22
-                );
-                targetLookAt.set(
-                    carX + Math.sin(carYaw) * 10,
-                    carY + 2,
-                    carZ + Math.cos(carYaw) * 10
-                );
-            }
-
-            camPos.lerp(targetCamPos, 0.12);
-            camTarget.lerp(targetLookAt, 0.15);
-            camera.position.copy(camPos);
-            camera.lookAt(camTarget);
-
-            document.getElementById('boost-bar').style.width = boost + '%';
-            document.getElementById('boost-text').innerText = Math.round(boost) + '%';
-            document.getElementById('speed-val').innerText = Math.round(Math.abs(carSpeed) * 90);
-
-            renderer.render(scene, camera);
-        }
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-
-        animate();
     </script>
 </body>
 </html>
