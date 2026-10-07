@@ -42,8 +42,8 @@
     </div>
 
     <div class="absolute bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur-md px-6 py-3 rounded-2xl border border-slate-800 shadow-2xl pointer-events-none z-10 flex gap-6 text-xs text-slate-300">
-        <div><span class="text-cyan-400 font-bold">W/S</span> Drive</div>
-        <div><span class="text-cyan-400 font-bold">A/D</span> Steer</div>
+        <div><span class="text-cyan-400 font-bold">W/S</span> Throttle / Pitch</div>
+        <div><span class="text-cyan-400 font-bold">A/D</span> Steer / Roll</div>
         <div><span class="text-cyan-400 font-bold">K</span> Jump</div>
         <div><span class="text-cyan-400 font-bold">J</span> Boost</div>
         <div><span class="text-cyan-400 font-bold">Space</span> Ball Cam</div>
@@ -137,8 +137,6 @@
         scene.add(centerCircle);
 
         const wallMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.5, metalness: 0.5 });
-        const glassMat = new THREE.MeshPhysicalMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.25, roughness: 0.1, transmission: 0.9 });
-
         const leftWall = new THREE.Mesh(new THREE.BoxGeometry(2, wallHeight, fieldLength), wallMat);
         leftWall.position.set(-fieldWidth/2 - 1, wallHeight/2, 0);
         leftWall.castShadow = true; leftWall.receiveShadow = true;
@@ -151,7 +149,6 @@
 
         const goalWidth = 40;
         const goalHeight = 15;
-        const goalDepth = 15;
 
         function createGoal(zPos, colorHex) {
             const group = new THREE.Group();
@@ -211,22 +208,6 @@
         spoiler.castShadow = true;
         carGroup.add(spoiler);
 
-        const wheelGeo = new THREE.CylinderGeometry(1, 1, 0.8, 16);
-        const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.9 });
-        const wheels = [];
-        const wheelPositions = [
-            [-2.2, 1, 2.5], [2.2, 1, 2.5],
-            [-2.2, 1, -2.5], [2.2, 1, -2.5]
-        ];
-        wheelPositions.forEach(pos => {
-            const wheel = new THREE.Mesh(wheelGeo, wheelMat);
-            wheel.rotation.z = Math.PI / 2;
-            wheel.position.set(...pos);
-            wheel.castShadow = true;
-            carGroup.add(wheel);
-            wheels.push(wheel);
-        });
-
         scene.add(carGroup);
 
         const ballRadius = 3.5;
@@ -244,7 +225,9 @@
 
         let carX = 0, carZ = 40, carY = 0;
         let carVelX = 0, carVelZ = 0, carVelY = 0;
-        let carAngle = 0;
+        let carYaw = 0;
+        let carPitch = 0;
+        let carRoll = 0;
         let carSpeed = 0;
         let boost = 100;
         let isJumping = false;
@@ -252,10 +235,13 @@
         let ballX = 0, ballZ = -30, ballY = ballRadius;
         let ballVelX = 0, ballVelZ = 0, ballVelY = 0;
 
+        let camPos = new THREE.Vector3(0, 10, 60);
+        let camTarget = new THREE.Vector3(0, 0, 40);
+
         function resetPositions() {
             carX = 0; carZ = 40; carY = 0;
             carVelX = 0; carVelZ = 0; carVelY = 0;
-            carAngle = 0; carSpeed = 0;
+            carYaw = 0; carPitch = 0; carRoll = 0; carSpeed = 0;
             boost = 100;
             isJumping = false;
 
@@ -283,36 +269,56 @@
             let dt = clock.getDelta();
             if (dt > 0.1) dt = 0.1;
 
-            const maxSpeed = 1.2;
-            const acceleration = 0.03;
+            const maxSpeed = 1.3;
+            const acceleration = 0.035;
             const friction = 0.98;
-            const turnSpeed = 0.04;
+            const turnSpeed = 0.045;
 
-            if (keys.w) {
-                carSpeed += acceleration;
-                if (carSpeed > maxSpeed) carSpeed = maxSpeed;
-            } else if (keys.s) {
-                carSpeed -= acceleration;
-                if (carSpeed < -maxSpeed / 2) carSpeed = -maxSpeed / 2;
+            if (carY <= 0.05) {
+                if (keys.w) {
+                    carSpeed += acceleration;
+                    if (carSpeed > maxSpeed) carSpeed = maxSpeed;
+                } else if (keys.s) {
+                    carSpeed -= acceleration;
+                    if (carSpeed < -maxSpeed / 2) carSpeed = -maxSpeed / 2;
+                } else {
+                    carSpeed *= friction;
+                }
+
+                if (keys.j && boost > 0) {
+                    carSpeed += acceleration * 2.5;
+                    boost = Math.max(0, boost - 35 * dt);
+                } else {
+                    boost = Math.min(100, boost + 15 * dt);
+                }
+
+                if (Math.abs(carSpeed) > 0.05) {
+                    if (keys.a) carYaw += turnSpeed * (carSpeed > 0 ? 1 : -1);
+                    if (keys.d) carYaw -= turnSpeed * (carSpeed > 0 ? 1 : -1);
+                }
+
+                carPitch *= 0.8;
+                carRoll *= 0.8;
+
+                if (keys.k && !isJumping) {
+                    carVelY = 0.85;
+                    isJumping = true;
+                }
             } else {
-                carSpeed *= friction;
-            }
+                if (keys.w) carPitch -= 2.0 * dt;
+                if (keys.s) carPitch += 2.0 * dt;
+                if (keys.a) carRoll += 2.5 * dt;
+                if (keys.d) carRoll -= 2.5 * dt;
 
-            if (keys.j && boost > 0) {
-                carSpeed += acceleration * 2.2;
-                boost = Math.max(0, boost - 35 * dt);
-            } else {
-                boost = Math.min(100, boost + 15 * dt);
-            }
-
-            if (Math.abs(carSpeed) > 0.05) {
-                if (keys.a) carAngle += turnSpeed * (carSpeed > 0 ? 1 : -1);
-                if (keys.d) carAngle -= turnSpeed * (carSpeed > 0 ? 1 : -1);
-            }
-
-            if (keys.k && !isJumping && carY <= 0.1) {
-                carVelY = 0.8;
-                isJumping = true;
+                if (keys.j && boost > 0) {
+                    const forwardDir = new THREE.Vector3(Math.sin(carYaw), Math.sin(-carPitch), Math.cos(carYaw));
+                    carVelX += forwardDir.x * 0.8 * dt * 60;
+                    carVelY += forwardDir.y * 0.8 * dt * 60;
+                    carVelZ += forwardDir.z * 0.8 * dt * 60;
+                    boost = Math.max(0, boost - 45 * dt);
+                } else {
+                    boost = Math.min(100, boost + 15 * dt);
+                }
             }
 
             carVelY -= 2.5 * dt;
@@ -323,8 +329,13 @@
                 isJumping = false;
             }
 
-            carVelX = Math.sin(carAngle) * carSpeed;
-            carVelZ = Math.cos(carAngle) * carSpeed;
+            if (carY === 0) {
+                carVelX = Math.sin(carYaw) * carSpeed;
+                carVelZ = Math.cos(carYaw) * carSpeed;
+            } else {
+                carVelX *= 0.99;
+                carVelZ *= 0.99;
+            }
 
             carX += carVelX;
             carZ += carVelZ;
@@ -332,16 +343,19 @@
             const boundX = fieldWidth / 2 - 3;
             const boundZ = fieldLength / 2 - 3;
 
-            if (carX < -boundX) { carX = -boundX; carSpeed = 0; }
-            if (carX > boundX) { carX = boundX; carSpeed = 0; }
-            if (carZ < -boundZ) { carZ = -boundZ; carSpeed = 0; }
-            if (carZ > boundZ) { carZ = boundZ; carSpeed = 0; }
+            if (carX < -boundX) { carX = -boundX; carSpeed = 0; carVelX = 0; }
+            if (carX > boundX) { carX = boundX; carSpeed = 0; carVelX = 0; }
+            if (carZ < -boundZ) { carZ = -boundZ; carSpeed = 0; carVelZ = 0; }
+            if (carZ > boundZ) { carZ = boundZ; carSpeed = 0; carVelZ = 0; }
 
             carGroup.position.set(carX, carY, carZ);
-            carGroup.rotation.y = carAngle;
+            carGroup.rotation.set(0, 0, 0);
+            carGroup.rotation.y = carYaw;
+            carGroup.rotation.x = carPitch;
+            carGroup.rotation.z = carRoll;
 
-            ballVelX *= 0.99;
-            ballVelZ *= 0.99;
+            ballVelX *= 0.992;
+            ballVelZ *= 0.992;
             ballVelY -= 0.6 * dt;
 
             ballX += ballVelX;
@@ -350,16 +364,16 @@
 
             if (ballY < ballRadius) {
                 ballY = ballRadius;
-                ballVelY = -ballVelY * 0.75;
-                ballVelX *= 0.95;
-                ballVelZ *= 0.95;
+                ballVelY = -ballVelY * 0.35;
+                ballVelX *= 0.92;
+                ballVelZ *= 0.92;
             }
 
             const ballBoundX = fieldWidth / 2 - ballRadius;
             const ballBoundZ = fieldLength / 2 - ballRadius;
 
-            if (ballX < -ballBoundX) { ballX = -ballBoundX; ballVelX = -ballVelX * 0.8; }
-            if (ballX > ballBoundX) { ballX = ballBoundX; ballVelX = -ballVelX * 0.8; }
+            if (ballX < -ballBoundX) { ballX = -ballBoundX; ballVelX = -ballVelX * 0.4; }
+            if (ballX > ballBoundX) { ballX = ballBoundX; ballVelX = -ballVelX * 0.4; }
 
             if (ballZ < -ballBoundZ) {
                 if (Math.abs(ballX) < goalWidth / 2 && ballY < goalHeight) {
@@ -370,7 +384,7 @@
                     }
                 } else {
                     ballZ = -ballBoundZ;
-                    ballVelZ = -ballVelZ * 0.8;
+                    ballVelZ = -ballVelZ * 0.4;
                 }
             } else if (ballZ > ballBoundZ) {
                 if (Math.abs(ballX) < goalWidth / 2 && ballY < goalHeight) {
@@ -381,7 +395,7 @@
                     }
                 } else {
                     ballZ = ballBoundZ;
-                    ballVelZ = -ballVelZ * 0.8;
+                    ballVelZ = -ballVelZ * 0.4;
                 }
             }
 
@@ -396,30 +410,43 @@
                 const ny = dy / dist;
                 const nz = dz / dist;
                 
-                const carHitForce = Math.sqrt(carVelX * carVelX + carVelZ * carVelZ) * 3.5 + 0.8;
-                ballVelX = nx * carHitForce + carVelX * 1.5;
-                ballVelY = ny * carHitForce + 0.4;
-                ballVelZ = nz * carHitForce + carVelZ * 1.5;
+                const carHitForce = Math.sqrt(carVelX * carVelX + carVelZ * carVelZ) * 3.0 + 0.6;
+                ballVelX = nx * carHitForce + carVelX * 1.2;
+                ballVelY = ny * carHitForce + 0.3;
+                ballVelZ = nz * carHitForce + carVelZ * 1.2;
             }
 
             ball.position.set(ballX, ballY, ballZ);
             ball.rotation.x += ballVelZ * 0.05;
             ball.rotation.z -= ballVelX * 0.05;
 
+            let targetCamPos = new THREE.Vector3();
+            let targetLookAt = new THREE.Vector3();
+
             if (ballCam) {
-                const targetCamPos = new THREE.Vector3(carX - Math.sin(carAngle) * 18, carY + 8, carZ - Math.cos(carAngle) * 18);
-                camera.position.lerp(targetCamPos, 0.15);
-                camera.lookAt(ball.position);
+                const carPos = new THREE.Vector3(carX, carY + 2, carZ);
+                const ballPos = new THREE.Vector3(ballX, ballY, ballZ);
+                const dirToBall = new THREE.Vector3().subVectors(ballPos, carPos).normalize();
+                
+                targetCamPos.copy(carPos).sub(dirToBall.multiplyScalar(22)).add(new THREE.Vector3(0, 8, 0));
+                targetLookAt.copy(ballPos).add(carPos).multiplyScalar(0.5);
             } else {
-                const targetCamPos = new THREE.Vector3(
-                    carX - Math.sin(carAngle) * 25,
-                    carY + 10,
-                    carZ - Math.cos(carAngle) * 25
+                targetCamPos.set(
+                    carX - Math.sin(carYaw) * 22,
+                    carY + 9,
+                    carZ - Math.cos(carYaw) * 22
                 );
-                camera.position.lerp(targetCamPos, 0.15);
-                const lookTarget = new THREE.Vector3(carX + Math.sin(carAngle) * 10, carY + 2, carZ + Math.cos(carAngle) * 10);
-                camera.lookAt(lookTarget);
+                targetLookAt.set(
+                    carX + Math.sin(carYaw) * 10,
+                    carY + 2,
+                    carZ + Math.cos(carYaw) * 10
+                );
             }
+
+            camPos.lerp(targetCamPos, 0.12);
+            camTarget.lerp(targetLookAt, 0.15);
+            camera.position.copy(camPos);
+            camera.lookAt(camTarget);
 
             document.getElementById('boost-bar').style.width = boost + '%';
             document.getElementById('boost-text').innerText = Math.round(boost) + '%';
